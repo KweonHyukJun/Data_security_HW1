@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, f1_score, classification_report, confusion_matrix
+from sklearn.metrics import accuracy_score, f1_score, classification_report, confusion_matrix, recall_score
 import pandas as pd
 from collections import Counter
 from sklearn.preprocessing import LabelEncoder
@@ -109,14 +109,20 @@ def evaluate(model, dataloader):
 
     acc = accuracy_score(all_labels, all_preds)
     f1 = f1_score(all_labels, all_preds)
+    recall = recall_score(all_labels, all_preds)
     report = classification_report(all_labels, all_preds, target_names=["ham", "spam"])
-    cm = confusion_matrix(all_labels, all_preds)
+    
+    # Save report to a text file
+    classification_report_file = f'classification_report.txt'
+    with open(classification_report_file, "w") as f:
+        f.write(f'Accuracy: {acc * 100:.2f}%\n')
+        f.write(f'Recall: {recall * 100:.2f}%\n')
+        f.write(f'F1 Score: {f1:.4f}\n')
+        f.write("Classification Report:\n")
+        f.write(report + "\n")
 
-    print(f'Accuracy: {acc * 100:.2f}%')
-    print(f'F1 Score: {f1:.4f}')
-    print("Classification Report:\n", report)
-    print("Confusion Matrix:\n", cm)
-
+    print(f"Report saved to {classification_report_file}.")
+    
 # Save the trained model
 def save_model(model, path):
     torch.save(model.state_dict(), path)
@@ -146,6 +152,6 @@ if __name__ == '__main__':
 
     optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-    train(model, train_loader, criterion, optimizer, epochs=50)
+    train(model, train_loader, criterion, optimizer, epochs=40)
     save_model(model, MODEL_PATH)
     evaluate(model, test_loader)

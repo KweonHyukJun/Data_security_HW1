@@ -1,0 +1,13 @@
+Accuracy: 96.23%
+Recall: 82.80%
+F1 Score: 0.8609
+Classification Report:
+              precision    recall  f1-score   support
+
+         ham       0.97      0.98      0.98       956
+        spam       0.90      0.83      0.86       157
+
+    accuracy                           0.96      1113
+   macro avg       0.93      0.91      0.92      1113
+weighted avg       0.96      0.96      0.96      1113
+

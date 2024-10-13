@@ -83,8 +83,8 @@ def main():
     # Load vocabulary
     vocab = load_vocab('spam.csv')  # Assumes the same training dataset
 
-    # Load test data, skipping the first column (labels)
-    df = pd.read_csv(TEST_FILE, header=None, names=["label", "text"])
+    # Load test data
+    df = pd.read_csv(TEST_FILE, header=None, names=["text"])
     test_texts = df["text"].tolist()
 
     # Create DataLoader for the test dataset

@@ -4,13 +4,11 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, f1_score, classification_report, confusion_matrix
 import pandas as pd
 from collections import Counter
 from sklearn.preprocessing import LabelEncoder
 
-
-# Set up environment for CUDA
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
@@ -82,7 +80,7 @@ def train(model, dataloader, criterion, optimizer, epochs=10):
             total_loss += loss.item()
         print(f'Epoch {epoch + 1}, Loss: {total_loss / len(dataloader):.4f}')
 
-# Evaluate the model
+# Evaluate the model with F1 score and classification report
 def evaluate(model, dataloader):
     model.eval()
     all_preds, all_labels = [], []
@@ -92,9 +90,17 @@ def evaluate(model, dataloader):
             preds = (outputs > 0.5).float()
             all_preds.extend(preds.tolist())
             all_labels.extend(labels.tolist())
-    acc = accuracy_score(all_labels, all_preds)
-    print(f'Accuracy: {acc * 100:.2f}%')
 
+    acc = accuracy_score(all_labels, all_preds)
+    f1 = f1_score(all_labels, all_preds)
+    report = classification_report(all_labels, all_preds, target_names=["ham", "spam"])
+    # Compute confusion matrix
+    cm = confusion_matrix(all_labels, all_preds)
+    
+
+    print("Confusion Matrix\n",cm)
+    print("Classification Report:\n", report)
+    
 # Main code
 if __name__ == '__main__':
     # Load and split the dataset
@@ -115,5 +121,5 @@ if __name__ == '__main__':
     optimizer = optim.Adam(model.parameters(), lr=0.001)
 
     # Train and evaluate the model
-    train(model, train_loader, criterion, optimizer, epochs=5)
+    train(model, train_loader, criterion, optimizer, epochs = 12)
     evaluate(model, test_loader)

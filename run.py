@@ -1,12 +1,22 @@
+import os
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
 import pandas as pd
 from collections import Counter
 
-MODEL_PATH = "spam_classifier_model.pt"  # Path to the saved model
-TEST_FILE = "test.csv"  # Test data CSV file
-RESULT_FILE = "result.txt"  # Output file for results
+# Align GPU device selection
+os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"  # Adjust if needed
+
+# Improved device selection logic
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"Using device: {device}")
+
+# Paths definition
+MODEL_PATH = "spam_classifier_model.pt"
+TEST_FILE = "test.csv"
+RESULT_FILE = "result.txt"
 
 # Dataset class for test data
 class TestDataset(Dataset):
@@ -48,6 +58,11 @@ class TextClassifier(nn.Module):
 
     def forward(self, x, lengths):
         x = self.embedding(x)
+
+        # Move lengths to CPU and ensure it's int64
+        lengths = lengths.cpu().long()
+
+        # Pack the padded sequence
         packed = nn.utils.rnn.pack_padded_sequence(x, lengths, batch_first=True, enforce_sorted=False)
         _, (hidden, _) = self.lstm(packed)
         out = self.fc(hidden[-1])
@@ -56,7 +71,8 @@ class TextClassifier(nn.Module):
 # Load the model from the .pt file
 def load_model(model_path, vocab_size):
     model = TextClassifier(vocab_size=vocab_size + 1)  # +1 for padding
-    model.load_state_dict(torch.load(model_path))
+    model.load_state_dict(torch.load(model_path, map_location=device))  # Ensure model is loaded to the right device
+    model.to(device)  # Move model to selected device
     model.eval()
     return model
 
@@ -65,6 +81,7 @@ def inference(model, dataloader):
     results = []
     with torch.no_grad():
         for texts, lengths in dataloader:
+            texts, lengths = texts.to(device), lengths.to(device)  # Move data to the device
             outputs = model(texts, lengths).squeeze()
             preds = (outputs > 0.5).long().tolist()
             results.extend(preds)
@@ -80,7 +97,7 @@ def save_results(results, output_file):
 # Main function to load model, perform inference, and save results
 def main():
     # Load vocabulary
-    vocab = load_vocab('spam.csv')  # Assumes the same training dataset
+    vocab = load_vocab('spam.csv')
 
     # Load test data, skipping the first line (header)
     df = pd.read_csv(TEST_FILE, header=None, names=["text"], skiprows=1)

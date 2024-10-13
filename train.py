@@ -9,8 +9,17 @@ import pandas as pd
 from collections import Counter
 from sklearn.preprocessing import LabelEncoder
 
+# Set CUDA device order and visibility
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"  # Makes GPU 0 and 1 available for use
+
+# Improved device selection logic
+if torch.cuda.is_available():
+    device = torch.device(f"cuda:{torch.cuda.current_device()}")
+    print(f"Using GPU: {torch.cuda.get_device_name(device)}")
+else:
+    device = torch.device("cpu")
+    print("CUDA not available. Using CPU.")
 
 MODEL_PATH = "spam_classifier_model.pt"  # Path to save the model
 
@@ -70,25 +79,29 @@ class TextClassifier(nn.Module):
 
 # Train the model
 def train(model, dataloader, criterion, optimizer, epochs=10):
+    model.to(device)  # Move model to selected device
     model.train()
     for epoch in range(epochs):
         total_loss = 0
         for texts, labels, lengths in dataloader:
+            texts, labels = texts.to(device), labels.to(device)  # Move data to device
             optimizer.zero_grad()
             outputs = model(texts, lengths).squeeze()
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
             total_loss += loss.item()
-        print(f'Epoch {epoch + 1}, Loss: {total_loss / len(dataloader):.4f}')
+        print(f'Epoch {epoch + 1}, Loss: {total_loss / len(dataloader):.6f}')
     print("Training complete.")
 
 # Evaluate the model with F1 score and classification report
 def evaluate(model, dataloader):
+    model.to(device)  # Move model to device
     model.eval()
     all_preds, all_labels = [], []
     with torch.no_grad():
         for texts, labels, lengths in dataloader:
+            texts, labels = texts.to(device), labels.to(device)  # Move data to device
             outputs = model(texts, lengths).squeeze()
             preds = (outputs > 0.5).float()
             all_preds.extend(preds.tolist())
@@ -117,33 +130,22 @@ def load_model(model, path):
 
 # Main code
 if __name__ == '__main__':
-    # Load and split the dataset
     texts, labels = load_data('spam.csv')
     vocab = build_vocab(texts)
     train_texts, test_texts, train_labels, test_labels = train_test_split(texts, labels, test_size=0.2, random_state=42)
 
-    # Create DataLoaders
     train_dataset = SpamDataset(train_texts, train_labels, vocab)
     test_dataset = SpamDataset(test_texts, test_labels, vocab)
 
     train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, collate_fn=pad_collate)
     test_loader = DataLoader(test_dataset, batch_size=32, collate_fn=pad_collate)
 
-    # Initialize the model, loss, and optimizer
     model = TextClassifier(vocab_size=len(vocab) + 1)  # +1 for padding
-    criterion = nn.BCELoss()
+    
+    criterion = nn.SmoothL1Loss(beta=1.0)  # Use PyTorch's built-in loss function
+
     optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-    # Train the model
-    train(model, train_loader, criterion, optimizer, epochs=12)
-
-    # Save the trained model to a .pt file
+    train(model, train_loader, criterion, optimizer, epochs=50)
     save_model(model, MODEL_PATH)
-
-    # Evaluate the model
     evaluate(model, test_loader)
-
-    # (Optional) Load the model from the .pt file and re-evaluate
-    loaded_model = TextClassifier(vocab_size=len(vocab) + 1)
-    load_model(loaded_model, MODEL_PATH)
-    evaluate(loaded_model, test_loader)

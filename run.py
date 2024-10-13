@@ -74,7 +74,6 @@ def inference(model, dataloader):
 def save_results(results, output_file):
     with open(output_file, "w") as f:
         for result in results:
-            # label = "spam" if result == 1 else "ham"
             f.write(f"{result}\n")
     print(f"Results saved to {output_file}.")
 
@@ -83,8 +82,8 @@ def main():
     # Load vocabulary
     vocab = load_vocab('spam.csv')  # Assumes the same training dataset
 
-    # Load test data
-    df = pd.read_csv(TEST_FILE, header=None, names=["text"])
+    # Load test data, skipping the first line (header)
+    df = pd.read_csv(TEST_FILE, header=None, names=["text"], skiprows=1)
     test_texts = df["text"].tolist()
 
     # Create DataLoader for the test dataset

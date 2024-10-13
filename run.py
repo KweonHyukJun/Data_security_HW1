@@ -11,8 +11,7 @@ RESULT_FILE = "result.txt"  # Output file for results
 # Dataset class for test data
 class TestDataset(Dataset):
     def __init__(self, texts, vocab):
-        # Ensure all texts are strings
-        self.texts = [str(text) for text in texts]
+        self.texts = texts
         self.vocab = vocab
 
     def __len__(self):
@@ -24,16 +23,16 @@ class TestDataset(Dataset):
         return torch.tensor(encoded, dtype=torch.long)
 
 def pad_collate(batch):
-    # Ensure the batch is correctly processed as tensors
-    lengths = torch.tensor([len(text) for text in batch])
-    texts = nn.utils.rnn.pad_sequence(batch, batch_first=True, padding_value=0)
+    texts = batch
+    lengths = torch.tensor([len(text) for text in texts])
+    texts = nn.utils.rnn.pad_sequence(texts, batch_first=True, padding_value=0)
     return texts, lengths
 
 # Load vocabulary from the training phase
 def load_vocab(file_path):
     df = pd.read_csv(file_path, header=None, names=["label", "text"])
     counter = Counter()
-    for text in df['text'].fillna('').tolist():  # Handle missing values
+    for text in df['text'].tolist():
         counter.update(text.split())
     vocab = {word: idx + 1 for idx, (word, _) in enumerate(counter.items())}  # 0 for padding
     return vocab
@@ -75,8 +74,8 @@ def inference(model, dataloader):
 def save_results(results, output_file):
     with open(output_file, "w") as f:
         for result in results:
-            label = "spam" if result == 1 else "ham"
-            f.write(f"{label}\n")
+            # label = "spam" if result == 1 else "ham"
+            f.write(f"{result}\n")
     print(f"Results saved to {output_file}.")
 
 # Main function to load model, perform inference, and save results
@@ -86,7 +85,7 @@ def main():
 
     # Load test data, skipping the first column (labels)
     df = pd.read_csv(TEST_FILE, header=None, names=["label", "text"])
-    test_texts = df["text"].fillna('').tolist()  # Handle missing values
+    test_texts = df["text"].tolist()
 
     # Create DataLoader for the test dataset
     test_dataset = TestDataset(test_texts, vocab)

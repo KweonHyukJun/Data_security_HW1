@@ -12,6 +12,8 @@ from sklearn.preprocessing import LabelEncoder
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
+MODEL_PATH = "spam_classifier_model.pt"  # Path to save the model
+
 # Dataset class for loading the CSV
 class SpamDataset(Dataset):
     def __init__(self, texts, labels, vocab):
@@ -79,6 +81,7 @@ def train(model, dataloader, criterion, optimizer, epochs=10):
             optimizer.step()
             total_loss += loss.item()
         print(f'Epoch {epoch + 1}, Loss: {total_loss / len(dataloader):.4f}')
+    print("Training complete.")
 
 # Evaluate the model with F1 score and classification report
 def evaluate(model, dataloader):
@@ -94,13 +97,24 @@ def evaluate(model, dataloader):
     acc = accuracy_score(all_labels, all_preds)
     f1 = f1_score(all_labels, all_preds)
     report = classification_report(all_labels, all_preds, target_names=["ham", "spam"])
-    # Compute confusion matrix
     cm = confusion_matrix(all_labels, all_preds)
-    
 
-    print("Confusion Matrix\n",cm)
+    print(f'Accuracy: {acc * 100:.2f}%')
+    print(f'F1 Score: {f1:.4f}')
     print("Classification Report:\n", report)
-    
+    print("Confusion Matrix:\n", cm)
+
+# Save the trained model
+def save_model(model, path):
+    torch.save(model.state_dict(), path)
+    print(f"Model saved to {path}.")
+
+# Load a model from a .pt file
+def load_model(model, path):
+    model.load_state_dict(torch.load(path))
+    model.eval()
+    print(f"Model loaded from {path}.")
+
 # Main code
 if __name__ == '__main__':
     # Load and split the dataset
@@ -120,6 +134,16 @@ if __name__ == '__main__':
     criterion = nn.BCELoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-    # Train and evaluate the model
-    train(model, train_loader, criterion, optimizer, epochs = 12)
+    # Train the model
+    train(model, train_loader, criterion, optimizer, epochs=12)
+
+    # Save the trained model to a .pt file
+    save_model(model, MODEL_PATH)
+
+    # Evaluate the model
     evaluate(model, test_loader)
+
+    # (Optional) Load the model from the .pt file and re-evaluate
+    loaded_model = TextClassifier(vocab_size=len(vocab) + 1)
+    load_model(loaded_model, MODEL_PATH)
+    evaluate(loaded_model, test_loader)
